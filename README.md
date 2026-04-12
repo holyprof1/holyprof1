@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- BANNER IMAGE — replace this URL with your actual portfolio banner/header screenshot -->
-<img src="https://tobi.holyprofweb.com/og-banner.jpg" alt="Tobi Arowosegbe — PHP Developer" width="100%" />
+<img src="https://holyprofweb.com/wp-content/uploads/2026/04/Screenshot-2026-04-12-235519.png" alt="Tobi Arowosegbe — PHP Developer" width="100%" />
 
 </div>
 
@@ -23,7 +23,7 @@
 
 ---
 
-<img align="right" src="https://tobi.holyprofweb.com/profile.jpg" width="220px" />
+<img align="right" src="https://holyprofweb.com/wp-content/uploads/2026/04/4a134285-3d27-4c0a-accb-01ccf6883846.jpg" width="220px" />
 
 ## ⚡ Who Am I?
 
