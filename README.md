@@ -23,7 +23,7 @@
 
 ---
 
-<img align="right" src="https://holyprofweb.com/wp-content/uploads/2026/04/4a134285-3d27-4c0a-accb-01ccf6883846.jpg" width="220px" />
+<img align="right" src="https://tobi.holyprofweb.com/me.png" width="220px" />
 
 ## ⚡ Who Am I?
 
