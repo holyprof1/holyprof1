@@ -66,14 +66,6 @@ I build products that work, scale, and hold up under real traffic — not just d
 ## GitHub Activity
 
 <div align="center">
-  <img src="https://github-readme-stats.vercel.app/api/top-langs/?username=holyprof1&layout=compact&theme=radical&hide_border=true&bg_color=0D1117&title_color=22C55E&text_color=ffffff&langs_count=8&cache_seconds=86400" height="170"/>
-</div>
-
-<div align="center">
-  <img src="https://github-readme-streak-stats.herokuapp.com?user=holyprof1&theme=dark&hide_border=true&background=0D1117&ring=22C55E&fire=FF6B35&currStreakLabel=22C55E&sideLabels=ffffff&dates=888888" width="70%"/>
-</div>
-
-<div align="center">
   <img src="https://github-readme-activity-graph.vercel.app/graph?username=holyprof1&bg_color=0D1117&color=22C55E&line=22C55E&point=ffffff&area=true&hide_border=true" width="95%"/>
 </div>
 
@@ -89,14 +81,6 @@ I build products that work, scale, and hold up under real traffic — not just d
 | Radiant Creative Concepts | Custom expo/exhibition WordPress theme | WordPress, ACF, PHP |
 | Beaconlights.org | Archive + AJAX cascading filter system | WordPress, PHP, JS |
 | XMC Platform | BuddyPress membership platform for a UK prop firm | WordPress, BuddyPress, PHP |
-
----
-
-## Trophies
-
-<div align="center">
-  <img src="https://github-profile-trophy.vercel.app/?username=holyprof1&theme=darkhub&no-frame=true&no-bg=true&column=7&margin-w=4" width="100%" />
-</div>
 
 ---
 
