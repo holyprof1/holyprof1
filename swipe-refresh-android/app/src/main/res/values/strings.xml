@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Swipe Refresh</string>
+    <string name="accessibility_name">Swipe Refresh gesture service</string>
+    <string name="accessibility_description">After you enable this service in Android Settings, performs a single downward swipe from 20% to 50% every five or seven minutes, only when Fiverr is visible and the screen is on and unlocked.</string>
+</resources>
