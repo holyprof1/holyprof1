@@ -4,7 +4,6 @@ import android.content.SharedPreferences;
 
 final class SwipePreferences {
     static final String KEY_ENABLED = "running";
-    static final String KEY_INTERVAL = "interval_minutes";
     static final String KEY_LAST_SUCCESS = "last_swipe_ms";
     static final String KEY_NEXT_DUE_MS = "next_due_ms";
     static final String KEY_LAST_RESULT = "last_result";
@@ -13,6 +12,5 @@ final class SwipePreferences {
     static SharedPreferences get(Context c) {
         return c.getSharedPreferences("swipe_options", Context.MODE_PRIVATE);
     }
-    static int interval(Context c) { return get(c).getInt(KEY_INTERVAL, 7) == 5 ? 5 : 7; }
     static boolean running(Context c) { return get(c).getBoolean(KEY_ENABLED, false); }
 }

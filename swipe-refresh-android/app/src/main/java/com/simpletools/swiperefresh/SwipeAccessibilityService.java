@@ -21,11 +21,13 @@ import android.widget.TextView;
 import android.view.View;
 import java.lang.ref.WeakReference;
 import java.util.Locale;
+import java.util.Random;
 
 /** User-authorized gesture timer; intentionally does not inspect or retrieve window contents. */
 public class SwipeAccessibilityService extends AccessibilityService {
     private static WeakReference<SwipeAccessibilityService> live = new WeakReference<>(null);
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Random random = new Random();
     private WindowManager windowManager;
     private View overlay;
     private TextView timerLabel;
@@ -43,7 +45,7 @@ public class SwipeAccessibilityService extends AccessibilityService {
             if (screenIsUsable()) dispatchDownwardSwipe();
             else SwipePreferences.get(SwipeAccessibilityService.this).edit()
                 .putString(SwipePreferences.KEY_LAST_RESULT, "Skipped — screen is locked or off").apply();
-            schedule(SwipePreferences.interval(SwipeAccessibilityService.this) * 60000L);
+            schedule(nextRandomDelay());
         }
     };
 
@@ -53,8 +55,8 @@ public class SwipeAccessibilityService extends AccessibilityService {
         if (SwipePreferences.running(this)) {
             long remain = SwipePreferences.get(this).getLong(SwipePreferences.KEY_NEXT_DUE_MS, 0L)
                 - System.currentTimeMillis();
-            long maximum = SwipePreferences.interval(this) * 60000L;
-            schedule(remain > 1500L && remain <= maximum ? remain : 5000L);
+            long maximum = 8L * 60000L;
+            schedule(remain > 1500L && remain <= maximum ? remain : 10000L);
         } else {
             updateOverlayVisibility();
         }
@@ -65,19 +67,13 @@ public class SwipeAccessibilityService extends AccessibilityService {
     static boolean startByUser() {
         SwipeAccessibilityService service = live.get();
         if (service == null) return false;
-        service.handler.post(() -> service.schedule(5000L));
+        service.handler.post(() -> service.schedule(10000L));
         return true;
     }
 
     static void stopByUser() {
         SwipeAccessibilityService service = live.get();
         if (service != null) service.handler.post(service::cancel);
-    }
-
-    static void intervalChanged() {
-        SwipeAccessibilityService service = live.get();
-        if (service != null && SwipePreferences.running(service))
-            service.handler.post(() -> service.schedule(SwipePreferences.interval(service) * 60000L));
     }
 
     static void syncOverlay() {
@@ -89,6 +85,11 @@ public class SwipeAccessibilityService extends AccessibilityService {
         handler.removeCallbacks(periodicSwipe);
         SwipePreferences.get(this).edit().remove(SwipePreferences.KEY_NEXT_DUE_MS).apply();
         updateOverlayVisibility();
+    }
+
+    /** New independent delay chosen uniformly from 6:00 to 8:00 inclusive. */
+    private long nextRandomDelay() {
+        return (360L + random.nextInt(121)) * 1000L;
     }
 
     private void schedule(long delayMs) {

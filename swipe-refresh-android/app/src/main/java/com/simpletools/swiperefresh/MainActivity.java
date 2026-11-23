@@ -33,7 +33,7 @@ public class MainActivity extends Activity {
     private static final int LIGHTBLUE = Color.rgb(231, 238, 255);
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView status, countdown, lastSwipe, permissionHint;
-    private Button five, seven, action, showTimerButton;
+    private Button action, showTimerButton;
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             refreshStatus();
@@ -81,22 +81,15 @@ public class MainActivity extends Activity {
         cardParams.topMargin = dp(32);
         page.addView(card, cardParams);
 
-        TextView choose = text("CHOOSE INTERVAL", 12, MUTED, true);
+        TextView choose = text("VARIABLE INTERVAL", 12, MUTED, true);
         choose.setLetterSpacing(.08f);
         card.addView(choose);
-        LinearLayout choices = new LinearLayout(this);
-        choices.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, dp(78));
-        cp.topMargin = dp(13);
-        card.addView(choices, cp);
-        five = choiceButton("5 minutes");
-        seven = choiceButton("7 minutes");
-        LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(0, -1, 1);
-        wp.rightMargin = dp(10);
-        choices.addView(five, wp);
-        choices.addView(seven, new LinearLayout.LayoutParams(0, -1, 1));
-        five.setOnClickListener(v -> setMinutes(5));
-        seven.setOnClickListener(v -> setMinutes(7));
+        TextView timing = text("6–8 minutes", 28, BLUE, true);
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-1, dp(66));
+        tp.topMargin = dp(8);
+        card.addView(timing, tp);
+        TextView timingHint = text("Each swipe gets a new interval.", 13, MUTED, false);
+        card.addView(timingHint);
 
         TextView swipePath = text("SWIPE MOVEMENT", 12, MUTED, true);
         swipePath.setLetterSpacing(.08f);
@@ -124,7 +117,7 @@ public class MainActivity extends Activity {
         card.addView(action, ap);
         action.setOnClickListener(v -> onAction());
 
-        TextView under = text("Starts in 5 seconds. Open any app yourself.", 13, MUTED, false);
+        TextView under = text("Starts in 10 seconds. Open any app yourself.", 13, MUTED, false);
         under.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams up = new LinearLayout.LayoutParams(-1, -2);
         up.topMargin = dp(16);
@@ -177,13 +170,6 @@ public class MainActivity extends Activity {
         super.onPause();
     }
 
-    private void setMinutes(int minutes) {
-        SwipePreferences.get(this).edit()
-            .putInt(SwipePreferences.KEY_INTERVAL, minutes).apply();
-        SwipeAccessibilityService.intervalChanged();
-        refreshStatus();
-    }
-
     private void onAction() {
         if (SwipePreferences.running(this)) {
             SwipePreferences.get(this).edit().putBoolean(SwipePreferences.KEY_ENABLED, false).apply();
@@ -199,7 +185,7 @@ public class MainActivity extends Activity {
         SwipePreferences.get(this).edit()
             .putBoolean(SwipePreferences.KEY_ENABLED, true)
             .putBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false)
-            .putString(SwipePreferences.KEY_LAST_RESULT, "First swipe in 5 seconds")
+            .putString(SwipePreferences.KEY_LAST_RESULT, "First swipe in 10 seconds")
             .apply();
         if (!SwipeAccessibilityService.startByUser()) {
             SwipePreferences.get(this).edit().putBoolean(SwipePreferences.KEY_ENABLED, false).apply();
@@ -218,9 +204,6 @@ public class MainActivity extends Activity {
         if (status == null) return;
         boolean enabled = isAccessibilityEnabled();
         boolean running = SwipePreferences.running(this);
-        int interval = SwipePreferences.interval(this);
-        selected(five, interval == 5);
-        selected(seven, interval == 7);
         action.setText(running ? "■  STOP" : "▶  START");
         action.setBackground(rounded(running ? NAVY : BLUE, 16, 0));
         status.setText(!enabled ? "● Accessibility disabled" : running ? "● Running" : "● Ready to start");
@@ -231,10 +214,10 @@ public class MainActivity extends Activity {
         if (running && nextAt > 0L) {
             long remaining = Math.max(0L, (nextAt - System.currentTimeMillis() + 999L) / 1000L);
             countdown.setText(String.format(Locale.getDefault(),
-                "Next swipe in %02d:%02d  ·  Every %d min",
-                remaining / 60L, remaining % 60L, interval));
+                "Next swipe in %02d:%02d  ·  Variable 6–8 min",
+                remaining / 60L, remaining % 60L));
         } else {
-            countdown.setText(running ? "Preparing first swipe…" : "Choose 5 or 7 minutes, then tap START");
+            countdown.setText(running ? "Preparing first swipe…" : "Tap START to begin variable 6–8 min swipes");
         }
         long last = SwipePreferences.get(this).getLong(SwipePreferences.KEY_LAST_SUCCESS, 0L);
         String result = SwipePreferences.get(this).getString(SwipePreferences.KEY_LAST_RESULT, "");
@@ -257,10 +240,6 @@ public class MainActivity extends Activity {
         return false;
     }
 
-    private void selected(Button b, boolean chosen) {
-        b.setTextColor(chosen ? Color.WHITE : NAVY);
-        b.setBackground(rounded(chosen ? BLUE : BACKGROUND, 13, chosen ? 0 : Color.rgb(224, 230, 242)));
-    }
     private Button choiceButton(String label) {
         Button b = new Button(this);
         b.setText(label);
