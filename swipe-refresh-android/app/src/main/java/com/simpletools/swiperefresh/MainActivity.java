@@ -7,6 +7,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -151,7 +152,20 @@ public class MainActivity extends Activity {
         permissionHint.setPadding(0, dp(15), 0, 0);
         page.addView(permissionHint);
 
-        TextView foot = text("Swipes anywhere on the unlocked screen — including other apps. Floating timer can be hidden. Android may stop Accessibility; this app cannot re-enable it by itself. Only use where permitted.", 12, MUTED, false);
+        Button batterySettings = choiceButton("Battery settings");
+        batterySettings.setTextColor(BLUE);
+        batterySettings.setBackground(rounded(Color.WHITE, 13, Color.rgb(224, 230, 242)));
+        LinearLayout.LayoutParams batteryParams = new LinearLayout.LayoutParams(-1, dp(49));
+        batteryParams.topMargin = dp(13);
+        page.addView(batterySettings, batteryParams);
+        batterySettings.setOnClickListener(v -> {
+            Toast.makeText(this, "If available, set Swipe Refresh battery use to Unrestricted.", Toast.LENGTH_LONG).show();
+            Intent appInfo = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + getPackageName()));
+            startActivity(appInfo);
+        });
+
+        TextView foot = text("Swipes anywhere on the unlocked screen — including other apps. Keep battery use Unrestricted if possible. Android may still turn Accessibility off; it cannot be restored silently. No swipes when screen is locked or off. Only use where permitted.", 12, MUTED, false);
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, -2);
         fp.topMargin = dp(22);
         page.addView(foot, fp);
@@ -206,16 +220,20 @@ public class MainActivity extends Activity {
         boolean running = SwipePreferences.running(this);
         action.setText(running ? "■  STOP" : "▶  START");
         action.setBackground(rounded(running ? NAVY : BLUE, 16, 0));
-        status.setText(!enabled ? "● Accessibility disabled" : running ? "● Running" : "● Ready to start");
+        status.setText(!enabled ? "● Accessibility disabled" :
+            !SwipeAccessibilityService.isReady() ? "● Accessibility reconnecting" :
+            running ? "● Running" : "● Ready to start");
         permissionHint.setVisibility(enabled ? View.GONE : View.VISIBLE);
         boolean hidden = SwipePreferences.get(this).getBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false);
         showTimerButton.setVisibility(running && hidden ? View.VISIBLE : View.GONE);
         long nextAt = SwipePreferences.get(this).getLong(SwipePreferences.KEY_NEXT_DUE_MS, 0L);
         if (running && nextAt > 0L) {
             long remaining = Math.max(0L, (nextAt - System.currentTimeMillis() + 999L) / 1000L);
-            countdown.setText(String.format(Locale.getDefault(),
-                "Next swipe in %02d:%02d  ·  Variable 6–8 min",
-                remaining / 60L, remaining % 60L));
+            countdown.setText(!SwipeAccessibilityService.isReady() ?
+                "Waiting for Android to reconnect the service" :
+                String.format(Locale.getDefault(),
+                    "Next swipe in %02d:%02d  ·  Variable 6–8 min",
+                    remaining / 60L, remaining % 60L));
         } else {
             countdown.setText(running ? "Preparing first swipe…" : "Tap START to begin variable 6–8 min swipes");
         }

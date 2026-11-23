@@ -1,4 +1,4 @@
-# Swipe Refresh v1.4 — Android
+# Swipe Refresh v1.5 — Android
 
 A simple user-authorized gesture timer, not connected to any specific app. It does not read window contents, active app names, or account data. It requires no internet permission.
 
@@ -9,3 +9,6 @@ Each gesture moves downward along the center of the screen from 20% to 50% of sc
 An Accessibility gesture completion indicates a simulated swipe was dispatched and completed, not that any app actually refreshed. Automated activity can violate a site's rules and may be detectable. Variable timing is a convenience feature, **not a guarantee of stealth or account safety**. The app does not open or close other apps, impersonate a user, read screen data, or try to evade platform enforcement.
 
 Build from source with Android SDK 35, Java 17, Gradle 8.9 or the GitHub Actions workflow on branch `swipe-refresh-android`. Sideloading may trigger Play Protect; don't disable security protections. This app is not physically device-tested.
+
+## Accessibility reliability
+The service reschedules after Android reconnects it, including after device reboot if the user-granted permission remains enabled. In-app status distinguishes an active service from an Android-disabled or disconnected service. A **Battery settings** shortcut opens the app's system settings so the user can set **Unrestricted** battery use, if available on their phone. This may reduce battery-related suspensions but cannot prevent Android or a phone manufacturer from revoking Accessibility; the app never tries to silently re-enable it. With the display off or device powered off, touchscreen gestures cannot be performed. The app does not force wake or unlock the phone.
