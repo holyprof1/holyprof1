@@ -7,7 +7,6 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -34,7 +33,7 @@ public class MainActivity extends Activity {
     private static final int LIGHTBLUE = Color.rgb(231, 238, 255);
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView status, countdown, lastSwipe, permissionHint;
-    private Button five, seven, action;
+    private Button five, seven, action, showTimerButton;
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             refreshStatus();
@@ -125,11 +124,20 @@ public class MainActivity extends Activity {
         card.addView(action, ap);
         action.setOnClickListener(v -> onAction());
 
-        TextView under = text("Start opens Fiverr and tests a swipe after 5 seconds.", 13, MUTED, false);
+        TextView under = text("Starts in 5 seconds. Open any app yourself.", 13, MUTED, false);
         under.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams up = new LinearLayout.LayoutParams(-1, -2);
         up.topMargin = dp(16);
         card.addView(under, up);
+        showTimerButton = choiceButton("Show floating timer");
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(-1, dp(48));
+        hp.topMargin = dp(12);
+        card.addView(showTimerButton, hp);
+        showTimerButton.setOnClickListener(v -> {
+            SwipePreferences.get(this).edit().putBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false).apply();
+            SwipeAccessibilityService.syncOverlay();
+            refreshStatus();
+        });
 
         LinearLayout report = new LinearLayout(this);
         report.setOrientation(LinearLayout.VERTICAL);
@@ -150,7 +158,7 @@ public class MainActivity extends Activity {
         permissionHint.setPadding(0, dp(15), 0, 0);
         page.addView(permissionHint);
 
-        TextView foot = text("Works when Fiverr is visible and your phone is unlocked with the screen on. Android may suspend Accessibility. No guarantee against Fiverr account restrictions.", 12, MUTED, false);
+        TextView foot = text("Swipes anywhere on the unlocked screen — including other apps. Floating timer can be hidden. Android may stop Accessibility; this app cannot re-enable it by itself. Only use where permitted.", 12, MUTED, false);
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, -2);
         fp.topMargin = dp(22);
         page.addView(foot, fp);
@@ -188,15 +196,10 @@ public class MainActivity extends Activity {
             startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
             return;
         }
-        Intent fiverr = getPackageManager().getLaunchIntentForPackage(SwipeAccessibilityService.FIVERR_PACKAGE);
-        if (fiverr == null) {
-            Toast.makeText(this, "Install Fiverr first", Toast.LENGTH_LONG).show();
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.fiverr.fiverr")));
-            return;
-        }
         SwipePreferences.get(this).edit()
             .putBoolean(SwipePreferences.KEY_ENABLED, true)
-            .putString(SwipePreferences.KEY_LAST_RESULT, "Starting — first swipe in 5 seconds")
+            .putBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false)
+            .putString(SwipePreferences.KEY_LAST_RESULT, "First swipe in 5 seconds")
             .apply();
         if (!SwipeAccessibilityService.startByUser()) {
             SwipePreferences.get(this).edit().putBoolean(SwipePreferences.KEY_ENABLED, false).apply();
@@ -205,7 +208,10 @@ public class MainActivity extends Activity {
             return;
         }
         refreshStatus();
-        startActivity(fiverr);
+        Intent home = new Intent(Intent.ACTION_MAIN);
+        home.addCategory(Intent.CATEGORY_HOME);
+        home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(home);
     }
 
     private void refreshStatus() {
@@ -215,10 +221,12 @@ public class MainActivity extends Activity {
         int interval = SwipePreferences.interval(this);
         selected(five, interval == 5);
         selected(seven, interval == 7);
-        action.setText(running ? "■  STOP" : "▶  START & OPEN FIVERR");
+        action.setText(running ? "■  STOP" : "▶  START");
         action.setBackground(rounded(running ? NAVY : BLUE, 16, 0));
         status.setText(!enabled ? "● Accessibility disabled" : running ? "● Running" : "● Ready to start");
         permissionHint.setVisibility(enabled ? View.GONE : View.VISIBLE);
+        boolean hidden = SwipePreferences.get(this).getBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false);
+        showTimerButton.setVisibility(running && hidden ? View.VISIBLE : View.GONE);
         long nextAt = SwipePreferences.get(this).getLong(SwipePreferences.KEY_NEXT_DUE_MS, 0L);
         if (running && nextAt > 0L) {
             long remaining = Math.max(0L, (nextAt - System.currentTimeMillis() + 999L) / 1000L);
