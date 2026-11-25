@@ -1,6 +1,10 @@
 package com.simpletools.swiperefresh;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.res.ColorStateList;
@@ -165,6 +169,23 @@ public class MainActivity extends Activity {
             startActivity(appInfo);
         });
 
+        Button diagnostics = choiceButton("Service diagnostics");
+        diagnostics.setTextColor(BLUE);
+        diagnostics.setBackground(rounded(Color.WHITE, 13, Color.rgb(224, 230, 242)));
+        LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(-1, dp(49));
+        dp.topMargin = dp(8);
+        page.addView(diagnostics, dp);
+        diagnostics.setOnClickListener(v -> {
+            String reportText = ServiceDiagnostics.report(this, isAccessibilityEnabled(),
+                SwipeAccessibilityService.isReady());
+            new AlertDialog.Builder(this).setTitle("Service diagnostics")
+                .setMessage(reportText)
+                .setPositiveButton("Copy", (dialog, which) -> {
+                    ClipboardManager clipboard = (ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("Swipe Refresh diagnostics", reportText));
+                }).setNegativeButton("Close", null).show();
+        });
+
         TextView foot = text("Swipes anywhere on the unlocked screen — including other apps. Keep battery use Unrestricted if possible. Android may still turn Accessibility off; it cannot be restored silently. No swipes when screen is locked or off. Only use where permitted.", 12, MUTED, false);
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, -2);
         fp.topMargin = dp(22);
@@ -223,7 +244,12 @@ public class MainActivity extends Activity {
         status.setText(!enabled ? "● Accessibility disabled" :
             !SwipeAccessibilityService.isReady() ? "● Accessibility reconnecting" :
             running ? "● Running" : "● Ready to start");
-        permissionHint.setVisibility(enabled ? View.GONE : View.VISIBLE);
+        permissionHint.setVisibility(enabled && SwipeAccessibilityService.isReady() ? View.GONE : View.VISIBLE);
+        permissionHint.setText(!enabled ? "Accessibility is off. Enable it in Android Settings." :
+            "Android has not connected the service. Open Service diagnostics for details.");
+        if (!enabled || !SwipeAccessibilityService.isReady()) {
+            permissionHint.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        }
         boolean hidden = SwipePreferences.get(this).getBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false);
         showTimerButton.setVisibility(running && hidden ? View.VISIBLE : View.GONE);
         long nextAt = SwipePreferences.get(this).getLong(SwipePreferences.KEY_NEXT_DUE_MS, 0L);

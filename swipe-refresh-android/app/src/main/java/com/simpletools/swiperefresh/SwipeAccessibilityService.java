@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
@@ -31,27 +32,50 @@ public class SwipeAccessibilityService extends AccessibilityService {
     private WindowManager windowManager;
     private View overlay;
     private TextView timerLabel;
+    private boolean connected;
+    private boolean overlayFailed;
+    private static final String TAG = "SwipeRefresh";
 
     private final Runnable countdownTick = new Runnable() {
         @Override public void run() {
-            updateOverlayText();
-            if (overlay != null) handler.postDelayed(this, 1000L);
+            if (!connected || overlay == null) return;
+            try {
+                updateOverlayText();
+                handler.postDelayed(this, 1000L);
+            } catch (RuntimeException failure) {
+                overlayFailed = true;
+                recordFailure("Countdown overlay", failure);
+                removeOverlay();
+            }
         }
     };
 
     private final Runnable periodicSwipe = new Runnable() {
         @Override public void run() {
-            if (!SwipePreferences.running(SwipeAccessibilityService.this)) return;
-            if (screenIsUsable()) dispatchDownwardSwipe();
-            else SwipePreferences.get(SwipeAccessibilityService.this).edit()
-                .putString(SwipePreferences.KEY_LAST_RESULT, "Skipped — screen is locked or off").apply();
-            schedule(nextRandomDelay());
+            if (!connected || !SwipePreferences.running(SwipeAccessibilityService.this)) return;
+            try {
+                if (screenIsUsable()) dispatchDownwardSwipe();
+                else SwipePreferences.get(SwipeAccessibilityService.this).edit()
+                    .putString(SwipePreferences.KEY_LAST_RESULT, "Skipped — screen is locked or off").apply();
+            } catch (RuntimeException failure) {
+                recordFailure("Gesture dispatch", failure);
+                SwipePreferences.get(SwipeAccessibilityService.this).edit()
+                    .putString(SwipePreferences.KEY_LAST_RESULT, "Gesture error — see Diagnostics").apply();
+            } finally {
+                if (connected && SwipePreferences.running(SwipeAccessibilityService.this))
+                    schedule(nextRandomDelay());
+            }
         }
     };
 
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
+        handler.removeCallbacksAndMessages(null);
+        removeOverlay();
+        connected = true;
+        overlayFailed = false;
         live = new WeakReference<>(this);
+        ServiceDiagnostics.event(this, "Connected");
         if (SwipePreferences.running(this)) {
             long remain = SwipePreferences.get(this).getLong(SwipePreferences.KEY_NEXT_DUE_MS, 0L)
                 - System.currentTimeMillis();
@@ -62,12 +86,18 @@ public class SwipeAccessibilityService extends AccessibilityService {
         }
     }
 
-    static boolean isReady() { return live.get() != null; }
+    static boolean isReady() {
+        SwipeAccessibilityService service = live.get();
+        return service != null && service.connected;
+    }
 
     static boolean startByUser() {
         SwipeAccessibilityService service = live.get();
-        if (service == null) return false;
-        service.handler.post(() -> service.schedule(10000L));
+        if (service == null || !service.connected) return false;
+        service.handler.post(() -> {
+            service.overlayFailed = false;
+            service.schedule(10000L);
+        });
         return true;
     }
 
@@ -78,7 +108,10 @@ public class SwipeAccessibilityService extends AccessibilityService {
 
     static void syncOverlay() {
         SwipeAccessibilityService service = live.get();
-        if (service != null) service.handler.post(service::updateOverlayVisibility);
+        if (service != null && service.connected) service.handler.post(() -> {
+            service.overlayFailed = false;
+            service.updateOverlayVisibility();
+        });
     }
 
     private void cancel() {
@@ -94,7 +127,7 @@ public class SwipeAccessibilityService extends AccessibilityService {
 
     private void schedule(long delayMs) {
         handler.removeCallbacks(periodicSwipe);
-        if (!SwipePreferences.running(this)) { cancel(); return; }
+        if (!connected || !SwipePreferences.running(this)) { cancel(); return; }
         long delay = Math.max(1500L, delayMs);
         SwipePreferences.get(this).edit()
             .putLong(SwipePreferences.KEY_NEXT_DUE_MS, System.currentTimeMillis() + delay)
@@ -138,11 +171,19 @@ public class SwipeAccessibilityService extends AccessibilityService {
     }
 
     private void updateOverlayVisibility() {
-        if (SwipePreferences.running(this) &&
-            !SwipePreferences.get(this).getBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false)) {
+        if (!connected || overlayFailed || !SwipePreferences.running(this) ||
+            SwipePreferences.get(this).getBoolean(SwipePreferences.KEY_OVERLAY_HIDDEN, false)) {
+            removeOverlay();
+            return;
+        }
+        try {
             if (overlay == null) createOverlay();
             updateOverlayText();
-        } else removeOverlay();
+        } catch (RuntimeException failure) {
+            overlayFailed = true;
+            recordFailure("Create or update overlay", failure);
+            removeOverlay();
+        }
     }
 
     private int dp(int n) { return (int)(getResources().getDisplayMetrics().density*n+.5f); }
@@ -169,7 +210,11 @@ public class SwipeAccessibilityService extends AccessibilityService {
         timerLabel.setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
+            try {
+                startActivity(intent);
+            } catch (RuntimeException failure) {
+                recordFailure("Open timer controls", failure);
+            }
         });
         TextView hide = new TextView(this);
         hide.setText("  ×");
@@ -199,10 +244,10 @@ public class SwipeAccessibilityService extends AccessibilityService {
             handler.removeCallbacks(countdownTick);
             handler.post(countdownTick);
         } catch (RuntimeException e) {
+            overlayFailed = true;
             overlay = null;
             timerLabel = null;
-            SwipePreferences.get(this).edit()
-                .putString(SwipePreferences.KEY_LAST_RESULT, "Floating timer unavailable").apply();
+            recordFailure("Attach floating timer", e);
         }
     }
 
@@ -223,18 +268,29 @@ public class SwipeAccessibilityService extends AccessibilityService {
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
-    @Override public void onInterrupt() { }
+    @Override public void onInterrupt() {
+        ServiceDiagnostics.event(this, "Interrupted by Android");
+    }
+
+    private void recordFailure(String operation, RuntimeException failure) {
+        Log.w(TAG, operation, failure);
+        ServiceDiagnostics.failure(this, operation, failure);
+    }
+
+    private void disconnect(String reason) {
+        connected = false;
+        handler.removeCallbacksAndMessages(null);
+        removeOverlay();
+        if (live.get() == this) live = new WeakReference<>(null);
+        ServiceDiagnostics.event(this, reason);
+    }
 
     @Override public boolean onUnbind(Intent intent) {
-        handler.removeCallbacks(periodicSwipe);
-        removeOverlay();
-        live = new WeakReference<>(null);
+        disconnect("Unbound by Android");
         return super.onUnbind(intent);
     }
     @Override public void onDestroy() {
-        handler.removeCallbacks(periodicSwipe);
-        removeOverlay();
-        live = new WeakReference<>(null);
+        disconnect("Service destroyed");
         super.onDestroy();
     }
 }
